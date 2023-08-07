@@ -24,3 +24,5 @@ constraints:
     QB_count + RB_count + WR_count + TE_count == roster_size
     
 optimize using cvxpy package
+
+includes variability in costs

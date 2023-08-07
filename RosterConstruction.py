@@ -40,11 +40,6 @@ import cvxpy
 import numpy as np
 import random
 
-# linear constraint package
-from scipy.optimize import LinearConstraint
-# integer optimization package
-from scipy.optimize import milp
-
 def load_data(data_loc = os.getcwd() + '/Data/FF_2023_Data.csv', add_variability = False, random_cost = 5):    
     # import data
     player_info = pd.read_csv(data_loc)
@@ -57,7 +52,6 @@ def load_data(data_loc = os.getcwd() + '/Data/FF_2023_Data.csv', add_variability
         player_info[position] = player_info['Position']==position
         
     if add_variability:
-        print('adding variability to cost')
         new_cost = player_info['Cost'] + [random.random() * random_cost for i in range(len(player_info))]
         player_info['Cost'] = new_cost.round()
         
@@ -88,15 +82,33 @@ def optimize_team(player_info, min_qb, min_rb, min_wr, min_te, flex_positions, b
 
     team_selection.solve()
 
-    print(player_info[np.round(np.abs(player_selection.value)).astype(bool)])
-    return team_selection, player_selection
+    #print(player_info[np.round(np.abs(player_selection.value)).astype(bool)])
+    return team_selection, player_info[np.round(np.abs(player_selection.value)).astype(bool)]
 
-player_info = load_data(add_variability = True)
+counts = {}
+totals = 0
+iterations = 100
+for i in range(iterations):
+    player_info = load_data(add_variability = True)
 
-team, player = optimize_team(player_info, min_qb = 2, min_rb = 3, min_wr = 5, min_te = 2, 
-                             flex_positions = 2, bench_positions = 0, total_cost = 300, )
+    #team, players = optimize_team(player_info, min_qb = 2, min_rb = 3, min_wr = 5, min_te = 2, 
+    #                             flex_positions = 2, bench_positions = 0, total_cost = 300, )
+    team, players = optimize_team(player_info, min_qb = 2, min_rb = 3, min_wr = 5, min_te = 2, 
+                                 flex_positions = 2, bench_positions = 7, total_cost = 300, 
+                                 adjust_cost = False,)
+
+    for player in players['Player']:
+        if player in counts:
+            counts[player]+=1
+        else:
+            counts[player]=1
+    totals+=team.value
+
+print(sorted(counts.items(), key = lambda x:x[1]))
+
 
 # iteration 2:
 #    implementing weights for starters, bench
+
 
 

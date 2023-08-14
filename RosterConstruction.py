@@ -37,10 +37,10 @@ import pandas as pd
 import numpy as np
 import os
 import cvxpy
-import numpy as np
 import random
+import matplotlib.pyplot as plt
 
-def load_data(data_loc = os.getcwd() + '/Data/FF_2023_Data.csv', add_variability = False, random_cost = 5):    
+def load_data(data_loc = os.getcwd() + '/Data/FF_2023_Data.csv', add_variability = False, random_cost = 5, prev_selected = None):    
     # import data
     player_info = pd.read_csv(data_loc)
 
@@ -50,11 +50,21 @@ def load_data(data_loc = os.getcwd() + '/Data/FF_2023_Data.csv', add_variability
     # create binary for positions
     for position in ['QB', 'RB', 'WR', 'TE']:
         player_info[position] = player_info['Position']==position
+    
+    if prev_selected:
+        #add variability only to players previously selected
+        players_to_raise_value = player_info['Player'].isin(prev_selected)
         
-    if add_variability:
+        new_cost = player_info['Cost'] + [random.random()*random_cost*i for i in players_to_raise_value]
+        player_info['Cost'] = new_cost.round()
+            
+    elif add_variability:
+        #add variability to all players
         new_cost = player_info['Cost'] + [random.random() * random_cost for i in range(len(player_info))]
         player_info['Cost'] = new_cost.round()
-        
+    #elif dynamic_variability:
+        #add variability to all previously selected players, adding more weight to those selected more times
+        #possibility 1: increase by weight
     return player_info
 
 
@@ -86,29 +96,49 @@ def optimize_team(player_info, min_qb, min_rb, min_wr, min_te, flex_positions, b
     return team_selection, player_info[np.round(np.abs(player_selection.value)).astype(bool)]
 
 counts = {}
-totals = 0
-iterations = 100
+totals = []
+iterations = 1000
+prev_selected = None
+adjust_by_prev = True
 for i in range(iterations):
-    player_info = load_data(add_variability = True)
+    #after every iteration, include a make players that were previously selected more expensive
+    player_info = load_data(add_variability = True, prev_selected=prev_selected)
 
     #team, players = optimize_team(player_info, min_qb = 2, min_rb = 3, min_wr = 5, min_te = 2, 
     #                             flex_positions = 2, bench_positions = 0, total_cost = 300, )
-    team, players = optimize_team(player_info, min_qb = 2, min_rb = 3, min_wr = 5, min_te = 2, 
-                                 flex_positions = 2, bench_positions = 7, total_cost = 300, 
-                                 adjust_cost = False,)
-
+    team, players = optimize_team(player_info, 
+                                  min_qb = 2, min_rb = 3, min_wr = 5, min_te = 2, 
+                                  flex_positions = 2, bench_positions = 0,#7, 
+                                  total_cost = 300-7*4, 
+                                  adjust_cost = False,)
+    if adjust_by_prev:
+        prev_selected = list(players['Player'])
+    
     for player in players['Player']:
         if player in counts:
             counts[player]+=1
         else:
             counts[player]=1
-    totals+=team.value
+            
+    totals.append(team.value)
 
-print(sorted(counts.items(), key = lambda x:x[1]))
-
+#sort by ascending order, most appearances
+counts = sorted(counts.items(), key = lambda x:x[1])
 
 # iteration 2:
 #    implementing weights for starters, bench
 
-
+fig, ax = plt.subplots()
+ax.scatter(range(len(counts)), [i[1] for i in counts]) #counts.values(), )
+for idx,i in enumerate(counts):
+    ax.annotate(text = '{}, {}'.format(i[0], i[1]), 
+                xy = (idx, i[1]),
+                textcoords = 'offset points',
+                xytext = (5,0),
+                fontsize = 'small',
+                rotation='vertical')
+plt.grid()
+plt.title('Number of Sims a Player is Selected as Part of Optimal Team')
+plt.ylabel('# Appearances')
+plt.show()
 

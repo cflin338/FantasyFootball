@@ -1,4 +1,6 @@
 # FantasyFootball
+requirements:
+pandas, numpy, cvxpy
 Construct optimal fantasy football team based on auction cost
 
 given:
@@ -16,7 +18,7 @@ optimization function:
     C = weekly projected fantasy points
     
 constraints:
-    sum(player_costs) <= total_cost
+   sum(player_costs) <= total_cost
     QB_count >= min_qbs
     RB_count >= min_rbs
     WR_count >= min_wrs
@@ -26,3 +28,4 @@ constraints:
 optimize using cvxpy package
 
 includes variability in costs
+

@@ -89,7 +89,7 @@ def add_cost_variability(costs, prev_selected, mode = 0, variable_cost = 5):
 def optimize_team(player_info, min_qb, min_rb, min_wr, min_te, flex_positions, bench_positions, total_cost, adjust_cost=True, adjust_cost_val = 5):    
     roster_size = min_qb + min_rb + min_wr + min_te + flex_positions + bench_positions
     if adjust_cost: 
-        total_cost = 300 - bench_positions*adjust_cost_val
+        total_cost = total_cost - bench_positions*adjust_cost_val
 
     player_selection = cvxpy.Variable(shape = len(player_info), boolean = True)
 
@@ -111,7 +111,7 @@ def optimize_team(player_info, min_qb, min_rb, min_wr, min_te, flex_positions, b
 
     return team_selection, player_info[np.round(np.abs(player_selection.value)).astype(bool)]
 
-def perform_sim(sims = 1000):
+def perform_sim(sims = 1000, variable_cost = 5):
     
     #perform sims
     base_stats = load_base_stats()
@@ -125,12 +125,13 @@ def perform_sim(sims = 1000):
         #after every iteration, make players that were previously selected more expensive
         player_info = add_cost_variability(costs=base_stats.copy(), 
                                            prev_selected=prev_selected,
-                                           mode = 0)
+                                           mode = 0,
+                                           variable_cost = variable_cost)
         
         team, players = optimize_team(player_info, 
                                       min_qb = 2, min_rb = 3, min_wr = 5, min_te = 2, 
                                       flex_positions = 2, bench_positions = 0,#7, 
-                                      total_cost = 300-7*4, 
+                                      total_cost = 350-7*4, 
                                       adjust_cost = False,)
         if adjust_by_prev:
             prev_selected = list(players['Player'])
@@ -148,7 +149,7 @@ def perform_sim(sims = 1000):
 
     return counts, totals
 
-counts, totals = perform_sim(sims=1000)
+counts, totals = perform_sim(sims=1000, variable_cost = 10)
 
 fig, ax = plt.subplots()
 ax.scatter(range(len(counts)), [i[1] for i in counts]) #counts.values(), )

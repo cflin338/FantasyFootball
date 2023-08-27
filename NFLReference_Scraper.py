@@ -32,9 +32,63 @@ def get_projections(position, week='draft'):
 def get_advanced_stats(position, ):
     url = 'https://www.fantasypros.com/nfl/advanced-stats-{}.php'.format(position.lower())
     html = urlopen(url)
-    soup = BeautifulSoup(html, )#features = 'lxml')
+    soup = BeautifulSoup(html, features = 'lxml')
     tables = soup.find(id='data')
     data = pd.read_html(str(tables))[0]
     
     return data    
-
+"""
+def new_point_system(stats, position):
+    #incorporate player's projected points with advanced stats 
+    #player column: ('Unnamed: 0_level_0',        'Rank')
+    if position=='RB':
+        #('Unnamed: 1_level_0',      'Player'),
+        #(           'RUSHING',   'YBCON/ATT'),
+        #(           'RUSHING',   'YACON/ATT'),
+        #(           'RUSHING',      'BRKTKL'),
+        #(           'RUSHING',     'TK LOSS'),
+        #(    'BIG RUSH PLAYS',     '10+ YDS'),
+        #(    'BIG RUSH PLAYS',         'LNG'),
+        #(         'RECEIVING',         'TGT'),
+        #(         'RECEIVING',       'YACON')
+    elif position=='WR':
+        #('Unnamed: 1_level_0',    'Player'),
+        #(         'RECEIVING',     'YBC/R'),
+        #(         'RECEIVING',     'AIR/R'),
+        #(         'RECEIVING',     'YAC/R'),
+        #(         'RECEIVING',   'YACON/R'),
+        #(         'RECEIVING',    'BRKTKL'),
+        #(           'TARGETS',       'TGT'),
+        #(           'TARGETS',      '% TM'),
+        #(           'TARGETS', 'CATCHABLE'),
+        #(           'TARGETS',      'DROP'),
+        #(           'TARGETS',    'RZ TGT'),
+        #(         'BIG PLAYS',   '10+ YDS'),
+        #(         'BIG PLAYS',       'LNG')
+    elif position=='QB':
+        #('Unnamed: 1_level_0',   'Player'),
+        #(           'PASSING',      'Y/A'),
+        #(           'PASSING',    'AIR/A'),
+        #( 'DEEP BALL PASSING',  '20+ YDS'),
+        #(          'PRESSURE', 'PKT TIME'),
+        #(              'MISC',   'RZ ATT'),
+        
+    else:
+        # TE
+        #('Unnamed: 1_level_0',    'Player'),
+        #(         'RECEIVING',     'YBC/R'),
+        #(         'RECEIVING',     'AIR/R'),
+        #(         'RECEIVING',     'YAC/R'),
+        #(         'RECEIVING',   'YACON/R'),
+        #(         'RECEIVING',    'BRKTKL'),
+        #(           'TARGETS',       'TGT'),
+        #(           'TARGETS',      '% TM'),
+        #(           'TARGETS', 'CATCHABLE'),
+        #(           'TARGETS',      'DROP'),
+        #(           'TARGETS',    'RZ TGT'),
+        #(         'BIG PLAYS',   '10+ YDS'),
+        #(         'BIG PLAYS',       'LNG')
+        
+        
+    return
+"""

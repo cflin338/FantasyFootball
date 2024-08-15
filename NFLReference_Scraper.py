@@ -11,7 +11,8 @@ import pandas as pd
 from unidecode import unidecode
 
 def get_projections(position, week='draft'):
-    url = 'https://www.fantasypros.com/nfl/projections/{}.php?week={}'.format(position.lower(), week)
+    url = 'https://www.fantasypros.com/nfl/projections/{}.php?week=draft&scoring=HALF&week={}'.format(position.lower(), week)
+    # url = 'https://www.fantasypros.com/nfl/projections/{}.php?week={}'.format(position.lower(), week)
     html = urlopen(url)
     soup = BeautifulSoup(html, features = 'lxml')
     tables = soup.find(id='data')

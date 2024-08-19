@@ -31,6 +31,9 @@ constraints:
 
 iteration 1: no bench players, reduce total salary
 iteration 2: bench players>0
+iteration 3: added variable point projections
+
+todo: include keepers; remove variability in cost for keeper players
 """
 
 import pandas as pd
@@ -39,8 +42,8 @@ import os
 import cvxpy
 import random
 import matplotlib.pyplot as plt
-from urllib.request import urlopen
-from bs4 import BeautifulSoup
+import settings
+from scipy.stats import skewnorm
 
 from NFLReference_Scraper import get_projections, get_advanced_stats
 
@@ -53,9 +56,15 @@ def load_costs(data_loc = os.getcwd() + '/Data/FF24.csv',
     # player_costs['Team'] = player_costs['Team'].str.upper()
     player_costs['Min Cost'] = player_costs['Min Cost']
     player_costs['Max Cost'] = player_costs['Max Cost']
-    return player_costs
+    
+    if len(settings.keepers)>0:
+        for keeper in settings.keepers:
+            keeper_price = settings.keepers[keeper]
+            player_costs.loc[player_costs['Player'] == keeper, 'Min Cost'] = keeper_price
+            player_costs.loc[player_costs['Player'] == keeper, 'Max Cost'] = keeper_price
 
-missing_weeks={'QB':0,'RB':0,'WR':0,'TE':0}
+    
+    return player_costs
 
 def load_base_stats(week=None):
     costs = load_costs()
@@ -74,45 +83,41 @@ def load_base_stats(week=None):
         for i in range(1,week+1):
             qb_ = get_projections('QB',week=i).drop(['Team','Position'], axis = 1)
             if len(qb_)<2:
-                missing_weeks['QB']+=1
+                settings.missing_weeks['QB']+=1
                 print('Week {} has no QB projections yet'.format(i))
             else:
-                # qb_ = qb_[qb_['Points']!=0]
-                qb = pd.merge(qb, qb_, on='Player', how='outer', suffixes=('_t1','_t2'))
+                qb = pd.merge(qb, qb_, on=['Player','Team'], how='outer', suffixes=('_t1','_t2'))
                 qb.fillna(0, inplace=True)
                 qb['Points'] = qb['Points_t1'] + qb['Points_t2']
                 qb = qb.drop(['Points_t1','Points_t2'],axis=1)
                 
-            wr_ = get_projections('WR',week=i).drop(['Team','Position'], axis = 1)
+            wr_ = get_projections('WR',week=i).drop(['Position'], axis = 1)
             if len(wr_)<2:
-                missing_weeks['WR']+=1
+                settings.missing_weeks['WR']+=1
                 print('Week {} has no WR projections yet'.format(i))
             else:
-                # wr_ = wr_[wr_['Points']!=0]
-                wr = pd.merge(wr, wr_, on='Player', how='outer', suffixes=('_t1','_t2'))
+                wr = pd.merge(wr, wr_, on=['Player','Team'], how='outer', suffixes=('_t1','_t2'))
                 wr.fillna(0, inplace=True)
                 wr['Points'] = wr['Points_t1'] + wr['Points_t2']
                 wr = wr.drop(['Points_t1','Points_t2'],axis=1)
                 
             
-            rb_ = get_projections('RB',week=i).drop(['Team','Position'], axis = 1)
+            rb_ = get_projections('RB',week=i).drop(['Position'], axis = 1)
             if len(rb_)<2:
-                missing_weeks['RB']+=1
+                settings.missing_weeks['RB']+=1
                 print('Week {} has no RB projections yet'.format(i))
             else:
-                # rb_ = rb_[rb_['Points']!=0]
-                rb = pd.merge(rb, rb_, on='Player', how='outer', suffixes=('_t1','_t2'))
+                rb = pd.merge(rb, rb_, on=['Player','Team'], how='outer', suffixes=('_t1','_t2'))
                 rb.fillna(0, inplace=True)
                 rb['Points'] = rb['Points_t1'] + rb['Points_t2']
                 rb = rb.drop(['Points_t1','Points_t2'],axis=1)
                 
-            te_ = get_projections('TE',week=i).drop(['Team','Position'], axis = 1)
+            te_ = get_projections('TE',week=i).drop(['Position'], axis = 1)
             if len(te_)<2:
-                missing_weeks['TE']+=1
+                settings.missing_weeks['TE']+=1
                 print('Week {} has no TE projections yet'.format(i))
             else:
-                # te_ = te_[te_['Points']!=0]
-                te = pd.merge(te, te_, on='Player', how='outer', suffixes=('_t1','_t2'))
+                te = pd.merge(te, te_, on=['Player','Team'], how='outer', suffixes=('_t1','_t2'))
                 te.fillna(0, inplace=True)
                 te['Points'] = te['Points_t1'] + te['Points_t2']
                 te = te.drop(['Points_t1','Points_t2'],axis=1)
@@ -130,7 +135,6 @@ def load_base_stats(week=None):
     costs['Min Cost'] = costs['Min Cost'].fillna(0)
     costs['Max Cost'] = costs['Max Cost'].fillna(0)
     costs['Points'] = costs['Points'].fillna(0)
-    # costs['Points'] = costs['Projected'].fillna(0)
     return costs
 
 def add_cost_variability(costs, prev_selected, mode = 0, variable_cost = 5, total_sims = 1000):
@@ -144,14 +148,17 @@ def add_cost_variability(costs, prev_selected, mode = 0, variable_cost = 5, tota
         if mode==0:
             if prev_selected:
                 players_to_raise_value = costs['Player'].isin(prev_selected)
+                players_to_raise_value = costs['Player'].isin(prev_selected) & ~costs['Player'].isin(settings.keepers)
+
                 tmp = [random.random()*variable_cost*i for i in players_to_raise_value]
                 new_mincost = costs['Min Cost'] + tmp
                 new_maxcost = costs['Max Cost'] + tmp
                 costs['Min Cost'] = new_mincost.round()
                 costs['Max Cost'] = new_maxcost.round()
+                
         if mode==1:
             for idx,row in costs.iterrows():
-                if row['Player'] in prev_selected:
+                if row['Player'] in prev_selected and row['Player'] not in settings.keepers:
                     min_adjust = np.ceil((prev_selected[row['Player']]/total_sims)*variable_cost)
                     tmp = random.randint(min_adjust, variable_cost)
                     new_mincost = row['Min Cost'] + tmp
@@ -163,7 +170,7 @@ def add_cost_variability(costs, prev_selected, mode = 0, variable_cost = 5, tota
 
 
 def optimize_team(player_info, min_qb, min_rb, min_wr, min_te, flex_positions, bench_positions, total_cost, adjust_cost=True, adjust_cost_val = 5):    
-    roster_size = min_qb + min_rb + min_wr + min_te + flex_positions + bench_positions
+    roster_size = min_qb + min_rb + min_wr + min_te + flex_positions + bench_positions*settings.incude_bench
     if adjust_cost: 
         total_cost = total_cost - bench_positions*adjust_cost_val
 
@@ -192,50 +199,82 @@ def perform_sim(sims = 1000, variable_cost = 5, random_mode = 0,weeks=None):
     
     #perform sims
     base_stats = load_base_stats(week=weeks)
-    
+    base_stats = base_stats[~base_stats['Player'].isin(settings.unavailable.keys())]
+
     counts = {}
+    prices = {}
     totals = []
     prev_selected = None
 
-    def random_in_range(row):
-        return random.randint(np.floor(row['Min Cost']), np.ceil(row['Max Cost']))
+    def random_in_range(row, skew_baseline):
+        #increase upper range by 50%
+        #randomly select but with a skew, which is higher for higher values
+        #will be relative to max
+        if row['Player'] in settings.keepers:
+            return row['Max Cost']
+        
+        adjustment = max(1, (row['Max Cost']-row['Min Cost'])*.5)
+        max_cost = row['Max Cost']+adjustment
+        min_cost = row['Min Cost']
+        if max_cost > skew_baseline:
+            skewness = (max_cost - skew_baseline) / (max_cost - min_cost)
+        else:
+            skewness = -(skew_baseline-max_cost) / (max_cost - min_cost)
+        
+        skewed_distribution = skewnorm(skewness, loc=min_cost, scale=max_cost - min_cost)
+        random_value = skewed_distribution.rvs()
+    
+        # Ensure the value is within the integer range and round it
+        random_int = int(np.round(random_value))
+        
+        # Clip to ensure it stays within the range
+        return int(np.ceil(max(min(random_int, row['Max Cost']+.5*(row['Max Cost']-row['Min Cost'])), row['Min Cost'])))
+        
+        #return random.randint(np.floor(row['Min Cost']), np.ceil(row['Max Cost']))
     
     def variable_points(row, weeks=weeks):
-        #variation by position pulled from variable spreadsheet
-        var = {
-            'QB': 22.568,
-            'RB': 28.27,
-            'WR': 19.354,
-            'TE': 15.70989
-            }
         if weeks is None:
-            return np.random.normal(row['Points'],var[row['Position']])
+            return np.random.normal(row['Points'],settings.position_pt_var[row['Position']])
         else:
-            return np.random.normal(row['Points'],var[row['Position']]/np.sqrt(17/(weeks-missing_weeks[row['Position']])))
+            return np.random.normal(row['Points'],settings.var[row['Position']]/np.sqrt(17/(weeks-settings.missing_weeks[row['Position']])))
     
     for i in range(sims):
+        if settings.verbose and i%100==0:
+            print('sim {} of {} total sims'.format(i+1,sims))
+            
         #after every iteration, make players that were previously selected more expensive
         player_info = add_cost_variability(costs=base_stats.copy(), 
                                            prev_selected=prev_selected,
                                            mode = random_mode,
                                            variable_cost = variable_cost)
         # using min/max possible cost, generate cost to be used for optimization
-        player_info['Cost'] = player_info.apply(random_in_range,axis=1)
+        
+        # player_info['Cost'] = player_info.apply(random_in_range,axis=1)
+        skew_baseline = ((player_info['Max Cost'] - player_info['Min Cost'])*.5+player_info['Max Cost']).median()
+        # skew_baseline=player_info['Max Cost'].max()
+        player_info['Cost'] = player_info.apply(lambda row: random_in_range(row, skew_baseline), 
+                                                axis=1)
         
         # add variation to player projected points
         player_info['ProjPoints'] = player_info.apply(variable_points, axis=1)
         team, players = optimize_team(player_info, 
-                                      min_qb = 2, min_rb = 3, min_wr = 5, min_te = 2, 
-                                      flex_positions = 2, bench_positions = 0,#7, 
-                                      total_cost = 350-7*4, 
-                                      adjust_cost = False,)
-        
-        for player in players['Player']:
+                                      min_qb = settings.min_qb, min_rb = settings.min_rb, 
+                                      min_wr = settings.min_wr, min_te = settings.min_te, 
+                                      flex_positions = settings.flex_positions, 
+                                      bench_positions = settings.bench_positions,
+                                      total_cost = settings.total_cost, 
+                                      adjust_cost = settings.adjust_cost,)
+        if i==sims//2 and settings.verbose:
+            print('--------halway check, sample team--------')
+            print(players[['Player', 'Rank', 'Position','Min Cost', 'Max Cost', 'Cost', 'Points','ProjPoints']])
+            
+        for player,cost in zip(players['Player'],players['Cost']) :
             if player in counts:
                 counts[player]+=1
+                prices[player].append(cost)
             else:
                 counts[player]=1
-        
+                prices[player]=[cost]
         
         totals.append(team.value)
         
@@ -246,12 +285,12 @@ def perform_sim(sims = 1000, variable_cost = 5, random_mode = 0,weeks=None):
     
     #sort by ascending order, most appearances
     counts = sorted(counts.items(), key = lambda x:x[1], reverse=True)
-
-    return counts, totals
+    price_range = {player:(min(prices[player]), max(prices[player])) for player in prices}
+    return counts, totals, price_range
 
 def main(sims, cost, mode,keepers=None,weeks=None):    
-    counts, totals = perform_sim(sims=sims, variable_cost = cost, 
-                                 random_mode = mode, weeks=weeks)
+    counts, totals, prices = perform_sim(sims=sims, variable_cost = cost, 
+                                         random_mode = mode, weeks=weeks)
     counts = [c for c in counts if c[1]>1]
     
     fig, ax = plt.subplots(figsize=(12,6))
@@ -273,23 +312,27 @@ def main(sims, cost, mode,keepers=None,weeks=None):
     plt.title('${} variable, mode {}: Number of Sims a Player is Selected as Part of Optimal Team, {}'.format(cost,mode,title))
     plt.ylabel('# Appearances')
     
-    plt.savefig(os.getcwd() + '/Plots/{}sims_dol{}mode{}_{}.png'.format(sims, cost, mode,length), dpi=300, bbox_inches='tight')
+    if settings.save_plots:
+        plt.savefig(os.getcwd() + '/Plots/{}sims_dol{}mode{}_{}.png'.format(sims, cost, mode,length), dpi=300, bbox_inches='tight')
     
     fig2, ax2 = plt.subplots(figsize=(12,6))
     ax2.boxplot(totals, vert = False, )
     plt.title('Range of Team Total Outcomes for Simulations, {}'.format(title))
     plt.xlabel('Total Points')
     
-    plt.savefig(os.getcwd() + '/Plots/{}sims_dol{}mode{}_points_{}.png'.format(sims, cost, mode,length), dpi=300, bbox_inches='tight')
+    if settings.save_plots:
+        plt.savefig(os.getcwd() + '/Plots/{}sims_dol{}mode{}_points_{}.png'.format(sims, cost, mode,length), dpi=300, bbox_inches='tight')
     
-    return counts
+    return counts, prices
     
 if __name__=='__main__':
-    with pd.ExcelWriter(os.getcwd() + '/Plots/results_v4.xlsx', engine='openpyxl') as writer:
+    with pd.ExcelWriter(os.getcwd() + '/Plots/{}.xlsx'.format(settings.result_excel), engine='openpyxl') as writer:
         idx=0
-        for cost in [5, 10]:
+        for cost in settings.variable_costs:
             for mode in [0,1]:
-                counts = main(1000, cost, mode,weeks=None)
-                counts = pd.DataFrame(counts)
-                counts.to_excel(writer, sheet_name='Sheet1', startcol=idx, index=False)
-                idx+=2
+                counts,prices = main(settings.sims, cost, mode,weeks=settings.pull_weeks)
+                prices = pd.DataFrame([(i,prices[i][0], prices[i][1]) for i in prices],columns=['Player','Min Price','Max Price'])
+                counts = pd.DataFrame(counts,columns=['Player','Count'])
+                comb = pd.merge(left=counts, right=prices,how='inner', on='Player')
+                comb.to_excel(writer, sheet_name='Sheet1', startcol=idx, index=False)
+                idx+=4

@@ -26,7 +26,11 @@ pull_weeks=None
 if league=='personal':
     # list of your own keepers
     keepers = {'Breece Hall':15, 'Brandon Aiyuk':5}
-    unavailable = {}
+    unavailable = {'James Cook', 'DJ Moore', 
+                   'Isiah Pacheco', 
+                   'Mike Evans',
+                   'Diontae Johnson',
+                   'Drake London', 'Jahmyr Gibbs'}
 
     min_qb = 2
     min_rb = 3

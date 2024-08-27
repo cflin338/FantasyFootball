@@ -199,7 +199,7 @@ def perform_sim(sims = 1000, variable_cost = 5, random_mode = 0,weeks=None):
     
     #perform sims
     base_stats = load_base_stats(week=weeks)
-    base_stats = base_stats[~base_stats['Player'].isin(settings.unavailable.keys())]
+    base_stats = base_stats[~base_stats['Player'].isin(settings.unavailable)]
 
     counts = {}
     prices = {}

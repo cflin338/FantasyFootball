@@ -11,8 +11,8 @@ position_pt_var = {
     'TE': 15.70989
     }
 
-result_excel = 'results_v1_regular_3bench'
-league = 'harshin' #'personal'
+result_excel = 'results_v2_keepers'
+league = 'personal' #'harshin'
 variable_costs = [5, 10]
 
 sims=1000
@@ -27,10 +27,12 @@ if league=='personal':
     # list of your own keepers
     keepers = {'Breece Hall':15, 'Brandon Aiyuk':5}
     unavailable = {'James Cook', 'DJ Moore', 
-                   'Isiah Pacheco', 
-                   'Mike Evans',
-                   'Diontae Johnson',
-                   'Drake London', 'Jahmyr Gibbs'}
+                   'Isiah Pacheco', 'Christian McCaffrey',
+                   'Mike Evans', 'Amon-Ra St. Brown',
+                   'Diontae Johnson', 'Travis Etienne Jr.',
+                   'Ja\'Marr Chase', 'Jahmyr Gibbs'}
+
+
 
     min_qb = 2
     min_rb = 3
